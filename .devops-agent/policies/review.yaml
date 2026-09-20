@@ -1,0 +1,6 @@
+focus:
+  - release gate correctness
+  - command execution safety
+  - evidence and revision integrity
+  - provider and executor boundaries
+  - failure recovery and diagnostics

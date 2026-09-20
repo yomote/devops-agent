@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+.devops-agent/runs/
+*.tgz
+.env
+.env.*
+!.env.example

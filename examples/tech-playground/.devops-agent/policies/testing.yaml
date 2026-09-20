@@ -1,0 +1,3 @@
+allowedCommands: [pnpm, node, python]
+timeoutMs: 180000
+maxOutputBytes: 1000000

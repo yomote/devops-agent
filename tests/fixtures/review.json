@@ -1,0 +1,5 @@
+{
+  "summary": "Fixture review: authorization behavior needs regression coverage.",
+  "risks": [{ "id": "authorization", "area": "security", "severity": "medium", "description": "Allow/deny boundaries may change", "relatedFiles": ["feature.txt"] }],
+  "findings": [{ "id": "coverage", "severity": "info", "category": "testing", "title": "Verify authorization", "description": "Exercise allow and deny behavior" }]
+}

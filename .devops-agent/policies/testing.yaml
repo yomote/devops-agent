@@ -1,0 +1,3 @@
+allowedCommands: [pnpm]
+timeoutMs: 180000
+maxOutputBytes: 1000000

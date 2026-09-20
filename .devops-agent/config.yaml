@@ -1,0 +1,33 @@
+version: 1
+project:
+  name: devops-agent
+provider:
+  type: local-git
+agents:
+  review:
+    executor: mock
+  testPlanning:
+    executor: mock
+testing:
+  allowedCommands: [pnpm]
+  discovery:
+    mode: automatic
+  commands:
+    - id: build
+      type: custom
+      command: pnpm build
+      description: Compile the CLI and libraries
+      required: true
+      always: true
+    - id: typecheck
+      type: custom
+      command: pnpm typecheck
+      description: Check source and test types
+      required: true
+      always: true
+    - id: unit-integration
+      type: integration
+      command: pnpm test
+      description: Domain, adapters, safety, and CLI integration tests
+      required: true
+      always: true

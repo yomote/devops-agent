@@ -1,0 +1,35 @@
+{
+  "name": "devops-agent",
+  "version": "0.1.0",
+  "description": "Change-centric Agentic DevOps Control Plane",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "engines": { "node": ">=22.0.0" },
+  "packageManager": "pnpm@11.19.0",
+  "bin": { "devops-agent": "dist/packages/cli/src/index.js" },
+  "exports": {
+    "./core": "./dist/packages/core/src/index.js",
+    "./adapters": "./dist/packages/adapters/src/index.js",
+    "./agent-runtime": "./dist/packages/agent-runtime/src/index.js"
+  },
+  "files": ["dist/packages", "README.md", "docs", "examples", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test.mjs",
+    "dev": "tsx packages/cli/src/index.ts",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "minimatch": "^10.0.1",
+    "yaml": "^2.8.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3"
+  }
+}
