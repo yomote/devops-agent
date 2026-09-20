@@ -6,7 +6,7 @@ jobs:
   verify:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -19,3 +19,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm pack --pack-destination .artifacts
+      - run: pnpm test:package

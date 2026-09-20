@@ -7,9 +7,10 @@ import { Pipeline } from '../../application/src/pipeline.js';
 import type { Run } from '../../application/src/store.js';
 import type { EventLogger, SourceControlProvider } from '../../core/src/index.js';
 import { report } from './report.js';
+import { packageVersion } from '../../platform/src/package.js';
 
-interface Options { repo: string; json?: boolean; quiet?: boolean; executor?: string; base?: string; head?: string; pr?: number; provider?: string; runId?: string; approveBy?: string; }
-const program = new Command().name('devops-agent').description('Control the Change lifecycle after coding').version('0.1.0');
+interface Options { repo: string; json?: boolean; quiet?: boolean; executor?: string; base?: string; head?: string; pr?: number; provider?: string; runId?: string; approveBy?: string; preset?: string; }
+const program = new Command().name('devops-agent').description('Control the Change lifecycle after coding').version(packageVersion);
 const positiveInteger = (value: string) => { const n = Number(value); if (!Number.isSafeInteger(n) || n < 1) throw new InvalidArgumentError('Must be a positive integer'); return n; };
 function common(command: Command) {
   return command.option('--repo <path>', 'repository root', '.').option('--json', 'print machine-readable JSON on stdout')
@@ -55,8 +56,11 @@ function fail(error: unknown, options: Options) {
   process.exitCode = 1;
 }
 common(program.command('init').description('Create thin repository configuration without overwriting existing files'))
+  .option('--preset <name>', 'initialize an included repository contract: tech-playground')
   .action(async (options: Options) => {
-    try { const result = await initRepository(path.resolve(options.repo)); process.stdout.write((options.json ? JSON.stringify(result) :
+    try {
+      if (options.preset && options.preset !== 'tech-playground') throw new Error(`Unknown preset: ${options.preset}`);
+      const result = await initRepository(path.resolve(options.repo), options.preset as 'tech-playground' | undefined); process.stdout.write((options.json ? JSON.stringify(result) :
       `Created: ${result.created.join(', ') || '(none)'}\nPreserved: ${result.skipped.join(', ') || '(none)'}\nEdit .devops-agent/config.yaml to register trusted test commands.`) + '\n'); }
     catch (error) { fail(error, options); }
   });

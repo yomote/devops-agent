@@ -49,29 +49,35 @@ testing:
       command: node --import tsx --test --test-name-pattern=metadata tests/playground.test.ts
       description: Demo schema and Portal search regression
       required: true
-      files: ["demos/*/demo.yaml", "demos/*/README.md", "apps/portal/**", "packages/demo-schema/**", "tools/metadata.ts", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
+      files: ["demos/*/demo.yaml", "demos/*/README.md", "apps/portal/**", "packages/playground-ui/**", "packages/demo-schema/**", "tools/metadata.ts", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
     - id: demo-scaffolding
       type: unit
       command: node --import tsx --test --test-name-pattern=CLI tests/playground.test.ts
       description: Template generation, overwrite refusal and path traversal rejection
       required: true
-      files: ["tools/create-demo/**", "templates/**", "packages/demo-schema/**", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
+      files: ["tools/create-demo/**", "templates/**", "packages/playground-ui/**", "packages/demo-schema/**", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
     - id: mcp-apps-handles
       type: unit
       command: node --import tsx --test --test-name-pattern=experiment tests/playground.test.ts
       description: MCP experiment handle isolation, invalidation and invalid input
       required: true
-      files: ["demos/mcp-apps-playground/**", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
+      files: ["demos/mcp-apps-playground/**", "packages/playground-ui/**", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
     - id: openfga-authorization
       type: regression
       command: node --import tsx --test --test-name-pattern=sharing tests/playground.test.ts
       description: Local evaluator inheritance, direct grants, revocation and denied access
       required: true
-      files: ["demos/openfga-sharing-playground/**", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
+      files: ["demos/openfga-sharing-playground/**", "packages/playground-ui/**", "tests/playground.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]
     - id: magentic-scrum-runner
       type: integration
       command: python -m unittest -v test_runner
       cwd: demos/maf-magentic-scrum
       description: Mock workflow, real fixture tests, failure/replan and approval boundaries
       required: true
-      files: ["demos/maf-magentic-scrum/**"]
+      files: ["demos/maf-magentic-scrum/**", "packages/playground-ui/**"]
+    - id: ui-behavior
+      type: regression
+      command: node --import tsx --test tests/ui-behavior.test.ts
+      description: Authorization graph, agent trajectory and MCP form behavior
+      required: true
+      files: ["packages/playground-ui/**", "apps/portal/**", "demos/*/src/**", "demos/*/domain.ts", "demos/*/contract.ts", "demos/*/experiments.ts", "tests/ui-behavior.test.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig*.json"]

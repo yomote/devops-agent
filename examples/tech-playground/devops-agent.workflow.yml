@@ -1,0 +1,61 @@
+name: DevOps Agent readiness
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base branch to compare against
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pnpm install --frozen-lockfile
+      - name: Review, plan, verify and assess
+        shell: bash
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref || inputs.base || 'main' }}
+        run: |
+          mkdir -p .artifacts
+          # Keep generated reports out of the clean-checkout validation.
+          printf '\n/.artifacts/\n' >> .git/info/exclude
+          set +e
+          pnpm exec devops-agent run --base "origin/$BASE_BRANCH" --head HEAD --executor mock --json > .artifacts/readiness.json
+          result=$?
+          set -e
+          if [ "$result" -eq 3 ]; then
+            echo '::notice::Readiness needs review (mock). This is an advisory result, not release approval.'
+            exit 0
+          fi
+          exit "$result"
+      - name: Upload readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devops-agent-readiness-${{ github.run_id }}
+          path: |
+            .artifacts/readiness.json
+            .devops-agent/runs/
+          include-hidden-files: true
+          if-no-files-found: warn

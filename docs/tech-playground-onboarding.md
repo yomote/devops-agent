@@ -1,13 +1,74 @@
 # Tech Playgroundへの導入
 
 最初は **変更をcommit → DevOps Agentを実行 → 結果を読む** の3操作で運用します。
-本体はこのrepositoryに置き、Tech Playgroundには`.devops-agent/`だけを追加します。
+ビルド済みDevOps AgentをTech Playgroundの開発依存に固定し、PCとCIで同じCLI・contractを使います。
+本体の隣接clone、個人PCの絶対path、Agent実装や大量のpromptのコピーは不要です。
 
-## 現在の構成を確認した結果
+## 初回セットアップ
 
-2026-09-21に隣の`tech-playground`を確認して、サンプルを実在するscript/testへ合わせました。
-各Demoに`pnpm test`はありません。TypeScriptの挙動テストはrootの
-`tests/playground.test.ts`、MAFのPythonテストはDemo配下にあります。
+Node.js 22以上、Git、pnpm 11を用意し、Tech Playgroundのrootで実行します。
+MAF検証にはPython 3.11以上も必要です。CIの例ではPython 3.12を使用します。
+
+```sh
+pnpm add -Dw https://github.com/yomote/devops-agent/releases/download/v0.1.1/devops-agent-0.1.1.tgz
+pnpm exec devops-agent init --preset tech-playground
+```
+
+`init`は既存ファイルを上書きしません。既に設定がある場合は
+[サンプルcontract](../examples/tech-playground/.devops-agent/config.yaml)との差分を取り込んでください。
+`.devops-agent/`の設定、`package.json`、`pnpm-lock.yaml`を通常のcommitに含めます。
+`.devops-agent/runs/`は生成された`.gitignore`で除外されます。
+
+Windowsでも`pnpm build`等の同じcommandを登録できます。DevOps Agentはnpm/pnpm/Corepackの
+インストール済みJS entry pointをNode.jsから起動し、`.cmd`のshell実行を避けます。
+この配布は単一binaryやoffline bundleではありません。Node.js、Git、Python、対象repositoryの依存packageが必要です。
+
+## 毎回の使い方
+
+別PCやCIでcheckoutした後も、Tech Playgroundのrootで次を実行できます。
+feature branchの変更をcommitし、テスト前に作業ツリーをcleanにします。
+
+```sh
+pnpm install --frozen-lockfile
+pnpm exec devops-agent run --base main --head HEAD --executor mock
+```
+
+これでreview → test planning → test execution → release policy評価を順に行います。
+`main`のままで実行すると`main...HEAD`の差分が空になるため、変更を含むbranchで実行します。
+localの`main`がないcheckoutでは、取得済みの`origin/main`をbaseに指定できます。
+
+途中のplanを見てからtestを実行したい場合:
+
+```sh
+pnpm exec devops-agent review --base main --head HEAD --executor mock
+pnpm exec devops-agent test-plan --executor mock
+pnpm exec devops-agent verify
+pnpm exec devops-agent release-check
+```
+
+後から結果を読む場合:
+
+```sh
+pnpm exec devops-agent show --json
+```
+
+結果はTech Playgroundの`.devops-agent/runs/`へ保存されます。
+
+| 結果 | 意味 |
+| --- | --- |
+| `ready` / exit 0 | 登録したrelease要件を満たした |
+| `blocked` / exit 2 | テスト失敗、証拠不足、重大findingなどがある |
+| `needs-review` / exit 3 | 人の確認が必要。mock使用時はテスト成功でもこの状態になる |
+| exit 1 | 設定、provider、Agent出力等のエラー |
+
+**mockは動作確認用です。** テストcommandは実行しますが、AIによる意味的なコードレビューは行いません。
+テスト成功やCIの成功表示を、そのままリリース承認として扱わないでください。
+
+## 変更箇所から選ぶ検証
+
+サンプルは2026-09-21のTech Playgroundにあるscript/testへ合わせています。
+各Demoに`pnpm test`はなく、TypeScriptの挙動テストはrootの
+`tests/playground.test.ts`と`tests/ui-behavior.test.ts`、MAFのPythonテストはDemo配下にあります。
 
 | 変更箇所 | 選ぶ検証 |
 | --- | --- |
@@ -17,85 +78,39 @@
 | MAF Demo | Python runnerのfailure/replan・approval・fixture test |
 | Portal / metadata | Demo schema・検索 |
 | Demo生成CLI / templates | scaffold・上書き拒否・path traversal |
+| Demo UI / Portal / UI関連domain | 認可graph・agent trajectory・MCP formの挙動回帰 |
+| 共通UI `packages/playground-ui/**` | 全Demoの登録済み挙動テスト、UI挙動回帰、metadata、scaffold |
 
-root build/typecheckは現在全JS/TS workspaceを対象とします。Demoの挙動テストは変更pathで選びます。
-TypeScriptテストの絞り込みは既存のtest名を使用しているため、test名変更時には設定も更新してください。
+UIにはMUIを使い、共通の`@playground/ui` / `LabTheme`へ揃えます。
+この方針をrepository instructionsへ渡し、共通UIの変更が全Demoへ影響することをfile patternsに記録しています。
+既存の挙動テストだけでは画面の見た目や操作を保証できないため、UI変更にはUI smokeの証拠も必要です。
+
+root build/typecheckは全JS/TS workspaceを対象とします。Demoの挙動テストは変更pathで選びます。
+MUIを含む全workspaceのcold buildに時間がかかるため、サンプルの各commandには10分の有限timeoutを設定しています。
+TypeScriptテストの絞り込みは既存のtest名を使うため、test名変更時には設定も更新してください。
 将来はDemoごとのtestファイル・scriptへ分離すると管理が簡単になります。
 
-## 初回セットアップ
+## PRで同じ検証を実行する
 
-PowerShellで、両repositoryが同じ親directoryにある場合の例です。
-このworkspaceでは本体directoryは`devops-agents`です。
+[workflowの例](../examples/tech-playground/devops-agent.workflow.yml)を
+Tech Playgroundの`.github/workflows/devops-agent.yml`へ置いてcommitします。
+PRではhead SHAをcheckoutし、取得済みのbase branchと比較します。手動実行では比較先のbranch名を指定できます。
+Node.js、pnpm、Pythonを導入し、lockfileどおりにinstallしてから同じmock pipelineを実行します。
 
-```powershell
-cd C:\Users\omote\workspace-win\devops-agents
-pnpm install --frozen-lockfile
-pnpm build
+workflowはJSON reportとrunをartifactに残します。exit 3は「人による確認が必要」という参考結果として
+jobを成功させますが、リリース承認にはしません。exit 1、2やその他の異常終了はCIを失敗させます。
+`pull_request`を使用し、checkout credentialを残さず、AI credentialも渡しません。
+設定済みtestはrepositoryのcodeを実行するため、未信頼PRに秘密情報を与えない運用を保ってください。
 
-# 既存の設定がない初回のみ、準備済みの薄いcontractを配置
-if (Test-Path -LiteralPath ../tech-playground/.devops-agent) {
-  throw '既存設定があります。サンプルとの差分を確認して取り込んでください。'
-}
-Copy-Item -LiteralPath examples/tech-playground/.devops-agent -Destination ../tech-playground/.devops-agent -Recurse
-node dist/packages/cli/src/index.js init --repo ../tech-playground
-```
+## 次に追加する検証
 
-最後の`init`は既存ファイルを保持し、tarball経由では同梱されない場合がある`.gitignore`などを補います。
-Tech Playground側で`pnpm install`を済ませておきます。MAF検証にはPython 3.11以上が必要です。
-Windowsの`pnpm`は`.exe` shimを使用します（この環境にはVoltaのshimがあります）。
-`.cmd`しかない環境ではREADMEのJS entry point方式に設定を変更してください。
+1. **実review / planner**: `agents.*.executor`を`command`に変え、JSON protocolを満たすAI wrapperを接続する。Codex等のCLIを文字列で置くだけではなく、stdin/stdoutの契約に合わせる。
+2. **serviceを使う検証**: MCP HTTP smokeと実OpenFGA回帰を追加する。現在の`tests/integration.ts`はMAFとOpenFGAが一体なので、Demo別に分けてから登録する。service起動・停止・port割当は明示的に管理する。
+3. **必須checkへの移行**: 実reviewと十分なtest evidenceが揃った段階で、release policyに基づく必須checkへ移行する。
 
-追加した`.devops-agent/`をTech Playgroundの通常のcommitに含めます。
-導入時点のlocal Tech Playgroundにはまだ初回commitがなかったため、まずbaseとなる`main`のcommitが必要です。
-作業中の変更は通常の開発手順でcommitしてください。未commitの作業内容をAgentが勝手にcommitする運用にはしません。
-
-## 毎回の使い方
-
-Tech Playgroundでfeature branchの変更をcommitし、作業ツリーをcleanにしてから:
-
-```powershell
-cd C:\Users\omote\workspace-win\devops-agents
-node dist/packages/cli/src/index.js run --repo ../tech-playground --base main --head HEAD --executor mock
-```
-
-これでreview → test planning → test execution → release policy評価を順に行います。
-`main`のままで実行すると`main...HEAD`の差分が空になるため、変更を含むbranchで実行します。
-
-途中のplanを見てからtestを実行したい場合:
-
-```powershell
-node dist/packages/cli/src/index.js review --repo ../tech-playground --base main --head HEAD --executor mock
-node dist/packages/cli/src/index.js test-plan --repo ../tech-playground --executor mock
-node dist/packages/cli/src/index.js verify --repo ../tech-playground
-node dist/packages/cli/src/index.js release-check --repo ../tech-playground
-```
-
-後から結果を読む場合:
-
-```powershell
-node dist/packages/cli/src/index.js show --repo ../tech-playground --json
-```
-
-結果はTech Playgroundの`.devops-agent/runs/`へ保存され、commit対象から除外されます。
-
-| 結果 | 意味 |
-| --- | --- |
-| `ready` | 登録したrelease要件を満たした |
-| `blocked` | テスト失敗、証拠不足、重大findingなどがある |
-| `needs-review` | 人の確認が必要。mock使用時は必ずこの状態以上になる |
-
-**mockは動作確認用です。** テストcommandは実行しますが、AIによる意味的なコードレビューは行いません。
-通過しただけで本番リリース可能と判断しないでください。
-
-## 段階的な導入
-
-1. **local / mock**: このbaselineでChange・plan・実行結果・保存・gateの流れを試す。GitHub token、Docker、LLM credentialは不要。
-2. **実review / planner**: `agents.*.executor`を`command`に変え、JSON protocolを満たすAI wrapperを接続する。Codex等のCLIを文字列で置くだけではなく、stdin/stdoutの契約に合わせる。
-3. **serviceを使う検証**: MCP HTTP smokeと実OpenFGA回帰を追加する。現在の`tests/integration.ts`はMAFとOpenFGAが一体なので、Demo別に分けてから登録する。service起動・停止・port割当は明示的に管理する。
-4. **PR連携 / CI**: 実際のGitHub repositoryを`provider.repository`に設定し、PR headをcheckoutして実行。最初は参考reportとして運用し、安定後に必須checkにする。mockのexit 3は期待どおりの結果であり、CI失敗と混同しない。
-
-特に`model.fga`やOpenFGA APIの変更はlocal evaluator testだけでは不十分です。
+`model.fga`やOpenFGA APIの変更はlocal evaluator testだけでは不十分です。
 MCPのprotocol/UI変更もhandle unit testだけでは不十分です。この不足はrepository instructionsへ明記しています。
-外部Agentが不足する検証をrequiredの手動項目として追加した場合、実行command・evidenceが整うまではblockedになります。
+Agentが不足する検証をrequiredの手動項目として追加した場合、実行command・evidenceが整うまではblockedになります。
 
-本体実装やpromptをTech Playgroundへコピーせず、contractの更新だけで導入を続けられます。
+本体を更新するときはrelease URLのversionを明示的に上げ、packageとlockfileをまとめて更新します。
+既存contractは自動で上書きされないため、変更されたサンプルを確認して必要な差分だけ取り込んでください。

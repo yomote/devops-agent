@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { access, realpath } from 'node:fs/promises';
+import { access, realpath, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import path from 'node:path';
 
@@ -32,16 +32,37 @@ export async function containedDirectory(root: string, directory: string): Promi
   return candidate;
 }
 // Resolve executables from PATH, never implicitly from the repository cwd.
-// Windows cmd/bat shims are deliberately refused; configure an exe or node + JS entry point.
-async function resolveExecutable(command: string): Promise<string> {
+// Known package-manager cmd shims are mapped to the installed package's Node bin.
+// The cmd file itself is never interpreted or executed.
+export async function resolveInvocation(command: string, env: NodeJS.ProcessEnv = process.env, platform = process.platform): Promise<{ executable: string; prefix: string[] }> {
   if (/\.(cmd|bat|ps1)$/i.test(command)) throw new Error('Shell scripts are not supported; use an executable or node with a JS entry point');
-  if (path.isAbsolute(command)) { await access(command); return command; }
+  if (path.isAbsolute(command)) { await access(command); return { executable: command, prefix: [] }; }
   if (command.includes('/') || command.includes('\\')) throw new Error('Executable must be an absolute path or a PATH name');
-  const extensions = process.platform === 'win32' ? (path.extname(command) ? [''] : ['.exe', '.com']) : [''];
-  for (const directory of (process.env.PATH ?? '').split(path.delimiter).filter(p => path.isAbsolute(p))) {
+  const extensions = platform === 'win32' ? (path.extname(command) ? [''] : ['.exe', '.com']) : [''];
+  const searchPath = Object.entries(env).find(([key]) => key.toLowerCase() === 'path')?.[1] ?? '';
+  for (const directory of searchPath.split(path.delimiter).filter(p => path.isAbsolute(p))) {
     for (const extension of extensions) {
       const candidate = path.join(directory, `${command}${extension}`);
-      try { await access(candidate, process.platform === 'win32' ? constants.F_OK : constants.X_OK); return candidate; } catch { /* next */ }
+      try { await access(candidate, platform === 'win32' ? constants.F_OK : constants.X_OK); return { executable: candidate, prefix: [] }; } catch { /* next */ }
+    }
+    if (platform === 'win32' && ['npm', 'npx', 'pnpm'].includes(command)) {
+      try { await access(path.join(directory, `${command}.cmd`)); } catch { continue; }
+      for (const name of [command === 'pnpm' ? 'pnpm' : 'npm', 'corepack']) {
+        const candidates = [path.join(directory, 'node_modules', name)];
+        if (path.basename(directory) === '.bin') candidates.push(path.resolve(directory, '..', name));
+        for (const candidate of candidates) {
+          try {
+            const root = await realpath(candidate);
+            const metadata = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+            const bin = typeof metadata.bin === 'string' && metadata.name === command ? metadata.bin : metadata.bin?.[command];
+            if (metadata.name !== name || typeof bin !== 'string' || !/\.(c?js|mjs)$/.test(bin)) continue;
+            const entry = await realpath(path.resolve(root, bin));
+            const relative = path.relative(root, entry);
+            if (relative.startsWith(`..${path.sep}`) || relative === '..' || path.isAbsolute(relative)) continue;
+            return { executable: process.execPath, prefix: [entry] };
+          } catch { /* not a supported installed Node package */ }
+        }
+      }
     }
   }
   throw new Error(`Executable not found: ${command}. On Windows use an .exe shim or node with the package CLI's JS path.`);
@@ -49,10 +70,10 @@ async function resolveExecutable(command: string): Promise<string> {
 export async function runProcess(command: string, args: readonly string[], options: {
   cwd: string; timeoutMs: number; maxOutputBytes: number; stdin?: string; env?: NodeJS.ProcessEnv;
 }): Promise<ProcessResult> {
-  const executable = await resolveExecutable(command);
+  const invocation = await resolveInvocation(command, options.env);
   const start = Date.now();
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, [...args], {
+    const child = spawn(invocation.executable, [...invocation.prefix, ...args], {
       cwd: options.cwd, shell: false, windowsHide: true, detached: process.platform !== 'win32',
       stdio: ['pipe', 'pipe', 'pipe'], env: options.env ?? process.env,
     });

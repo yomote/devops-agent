@@ -2,6 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';
 import { ConfigSchema, ReleasePolicySchema, ReviewPolicySchema, TestingPolicySchema } from './schema.js';
+import { packageRoot } from '../../platform/src/package.js';
 export * from './schema.js';
 
 async function optionalText(file: string): Promise<string | undefined> {
@@ -32,7 +33,7 @@ export async function loadConfig(root: string) {
     reviewPolicy: ReviewPolicySchema.parse(review === undefined ? {} : parse(review)),
   };
 }
-export async function initRepository(root: string): Promise<{ created: string[]; skipped: string[] }> {
+export async function initRepository(root: string, preset?: 'tech-playground'): Promise<{ created: string[]; skipped: string[] }> {
   const config = {
     version: 1, project: { name: path.basename(root) }, provider: { type: 'local-git' },
     lifecycle: { review: true, testPlanning: true, testExecution: true, releaseAssurance: true },
@@ -47,6 +48,12 @@ export async function initRepository(root: string): Promise<{ created: string[];
     'instructions/repository.md': '# Repository Notes\n\nDescribe architecture, affected areas, security expectations, and validation requirements.\nRegister runnable tests with file patterns in config.yaml under testing.commands.\n',
     '.gitignore': 'runs/\n',
   };
+  if (preset) {
+    if (preset !== 'tech-playground') throw new Error(`Unknown preset: ${preset}`);
+    for (const relative of Object.keys(files).filter(file => file !== '.gitignore')) {
+      files[relative] = await readFile(path.join(packageRoot, 'examples', preset, '.devops-agent', relative), 'utf8');
+    }
+  }
   const result: { created: string[]; skipped: string[] } = { created: [], skipped: [] };
   for (const [relative, contents] of Object.entries(files)) {
     const file = path.join(root, '.devops-agent', relative);

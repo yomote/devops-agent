@@ -1,10 +1,13 @@
 {
   "name": "devops-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Change-centric Agentic DevOps Control Plane",
   "type": "module",
   "private": false,
   "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/yomote/devops-agent.git" },
+  "homepage": "https://github.com/yomote/devops-agent#readme",
+  "bugs": "https://github.com/yomote/devops-agent/issues",
   "engines": { "node": ">=22.0.0" },
   "packageManager": "pnpm@11.19.0",
   "bin": { "devops-agent": "dist/packages/cli/src/index.js" },
@@ -18,6 +21,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",
+    "test:package": "node scripts/smoke-package.mjs",
     "dev": "tsx packages/cli/src/index.ts",
     "prepack": "pnpm build"
   },
