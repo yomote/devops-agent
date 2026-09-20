@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, symlink, readFile } from 'node:fs/promises';
+import { mkdir, symlink, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { parseCommand, containedDirectory, runProcess, testEnvironment } from '../packages/platform/src/process.js';
 import { CommandAgentExecutor, MockAgentExecutor, type AgentContext } from '../packages/agent-runtime/src/index.js';
@@ -15,7 +15,8 @@ test('command tokenizer supports quoted arguments and refuses shell operators', 
 test('cwd rejects traversal and symlink escape', async () => {
   const root = await temporary(), outside = await temporary();
   await mkdir(path.join(root, 'safe'));
-  assert.equal(await containedDirectory(root, 'safe'), path.join(root, 'safe'));
+  // Windows runner temp paths can use an 8.3 alias; the API returns the canonical path.
+  assert.equal(await containedDirectory(root, 'safe'), await realpath(path.join(root, 'safe')));
   await assert.rejects(containedDirectory(root, '../'), /escapes/);
   await symlink(outside, path.join(root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
   await assert.rejects(containedDirectory(root, 'escape'), /escapes/);
