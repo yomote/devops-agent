@@ -1,0 +1,4 @@
+interface:
+  display_name: "DevOps Agent Development"
+  short_description: "Develop the CLI with contract and regression checks"
+  default_prompt: "Use $devops-agent-change to implement this CLI change and verify the affected contracts."

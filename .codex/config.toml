@@ -1,0 +1,15 @@
+# Project-scoped development tools; no model or permission-policy override.
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+startup_timeout_sec = 15
+tool_timeout_sec = 60
+required = false
+
+# Optional: configure a read-only token in your environment and enable locally.
+# This is separate from the product's GITHUB_TOKEN / GH_TOKEN integration.
+[mcp_servers.githubReadOnly]
+url = "https://api.githubcopilot.com/mcp/readonly"
+bearer_token_env_var = "DEVOPS_AGENT_GITHUB_MCP_TOKEN"
+http_headers = { "X-MCP-Toolsets" = "repos,pull_requests,actions" }
+enabled = false
+required = false

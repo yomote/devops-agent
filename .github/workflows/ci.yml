@@ -16,8 +16,5 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm build
-      - run: pnpm test
-      - run: pnpm pack --pack-destination .artifacts
-      - run: pnpm test:package
+      - run: pnpm run doctor
+      - run: pnpm check:package

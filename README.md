@@ -12,6 +12,10 @@ Change → Review / Risk → Test Plan → Test Evidence → Release Readiness
 
 v0.1はローカルCLIです。DB、Web UI、サービス常駐、production deploymentは含みません。
 
+初めて使う方は[使い方プレイブック](docs/playbook.md)からどうぞ。できること、最初の実行、結果の読み方をTech Playgroundの例で説明しています。
+
+本体を開発する方は[エージェント開発ガイド](docs/agent-development.md)へ。共通ハーネス、スキル、MCPの使い方をまとめています。
+
 ## Quick start
 
 Node.js 22以上、Git、pnpm 11を使用します。管理対象repositoryのrootで、公開releaseのビルド済みpackageを開発依存として固定します。

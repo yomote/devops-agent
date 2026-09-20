@@ -1,0 +1,4 @@
+interface:
+  display_name: "DevOps Agent Readiness"
+  short_description: "Assess committed changes with saved test evidence"
+  default_prompt: "Use $devops-agent-readiness to assess this committed change and explain its release blockers."
